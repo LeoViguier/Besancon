@@ -1,0 +1,81 @@
+# Configuration de l'agrégateur d'événements Besançon / Doubs / Bourgogne-Franche-Comté
+#
+# Types de sources :
+#   openagenda : API publique OpenAgenda (via Opendatasoft), données structurées, sans clé
+#   jsonld     : pages web contenant des données schema.org/Event (sans IA)
+#   ical / rss : flux standards
+#   ai         : n'importe quelle page web, lue par Claude (nécessite ANTHROPIC_API_KEY)
+#
+# Une source en erreur est simplement ignorée pour ce passage (voir les logs).
+
+max_notifications_per_run: 40
+
+filters:
+  max_days_ahead: 365
+  # Mots (titre + mots-clés + nom de l'agenda d'origine) qui excluent un événement.
+  # Comparaison sans accents ni majuscules, sur des mots entiers.
+  exclude_keywords:
+    - france travail
+    - recrutement
+    - recrute
+    - job dating
+    - interim
+    - information collective
+    - demandeurs d emploi
+    - retour a l emploi
+    - semaine de l industrie
+    - permanence
+    - cv
+
+sources:
+  # ── Données structurées ──────────────────────────────────────────────────
+  openagenda-besancon:
+    type: openagenda
+    # Besançon et 40 km autour : tout ce qui est publié
+    around: {lat: 47.2378, lon: 6.0241, radius_km: 40}
+    departments: [Doubs]
+    updated_within_days: 7
+    exclude_agendas: [France Travail]
+
+  openagenda-region:
+    type: openagenda
+    regions: [Bourgogne-Franche-Comté]
+    updated_within_days: 7
+    exclude_agendas: [France Travail, Semaine de l'industrie]
+    # La région est grande : désactivez cette source si c'est trop bavard,
+    # ou remplacez `regions` par `departments: [Jura, Haute-Saône]`
+    enabled: true
+
+  jds-besancon:
+    type: jsonld
+    urls:
+      - https://www.jds.fr/besancon/agenda/
+    # Si la page liste n'a pas de JSON-LD, on visite les fiches (nouvelles seulement)
+    follow_links: "jds\\.fr/besancon/.+-\\d+_A$"
+    max_follow: 30
+
+  # ── Pages lues par l'IA (ignorées sans ANTHROPIC_API_KEY) ────────────────
+  # Claude n'est appelé que si le contenu de la page a changé.
+  la-rodia:
+    type: ai
+    urls: [https://larodia.com/programmation/]
+
+  les-2-scenes:
+    type: ai
+    urls: [https://les2scenes.fr/spectacle-vivant/calendrier]
+
+  besancon-tourisme:
+    type: ai
+    urls: [https://www.besancon-tourisme.com/fr/cote-pratique/agenda/]
+
+  besac-com:
+    type: ai
+    urls: [https://www.besac.com/]
+
+  # Exemples d'autres types :
+  # mon-flux-ical:
+  #   type: ical
+  #   urls: [https://exemple.fr/agenda.ics]
+  # actus-ville:
+  #   type: rss
+  #   urls: [https://www.besancon.fr/feed/]

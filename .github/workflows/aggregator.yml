@@ -1,0 +1,48 @@
+name: Agrégateur d'événements
+
+on:
+  schedule:
+    # Toutes les 3 heures de 6h à 21h (UTC) ; GitHub peut retarder de quelques minutes
+    - cron: "17 6-21/3 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Simulation (n'envoie rien sur Discord)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # pour enregistrer state/seen.json
+
+concurrency:
+  group: aggregator
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Récupérer et notifier
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m besancon_events ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Enregistrer la mémoire des événements envoyés
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/seen.json
+          git diff --cached --quiet || git commit -m "Mise à jour de l'état [skip ci]"
+          git push
