@@ -46,6 +46,37 @@ pour ne pas inonder le salon ; seules les nouveautés suivantes sont annoncées.
 
 Ensuite le workflow tourne toutes les 3 heures, de 8h à 23h environ (heure de Paris).
 
+## Sur un serveur Windows (Planificateur de tâches)
+
+Prérequis : [Git](https://git-scm.com/download/win) et
+[Python 3.11+](https://www.python.org/downloads/) (cocher « Add to PATH »).
+
+Dans PowerShell :
+
+```powershell
+cd C:\
+git clone -b claude/besancon-events-aggregator-u2je5r https://github.com/LeoViguier/Besancon.git
+cd C:\Besancon
+py -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+copy .env.example .env
+notepad .env        # coller l'URL du webhook Discord
+.venv\Scripts\python -m besancon_events --dry-run   # test sans rien envoyer
+.\run.bat           # vrai premier passage (mémorise l'existant, message d'accueil)
+type logs\run.log
+```
+
+Puis créer la tâche planifiée (toutes les 3 heures, même sans session ouverte) :
+
+```powershell
+schtasks /create /tn "Sorties Besancon" /tr "C:\Besancon\run.bat" /sc hourly /mo 3 /st 08:00 /ru SYSTEM
+```
+
+- Lancer à la main : `schtasks /run /tn "Sorties Besancon"`
+- Journal : `C:\Besancon\logs\run.log`
+- Mémoire des événements envoyés : `C:\Besancon\state\seen.json`
+- Mise à jour du code : `git pull` dans `C:\Besancon`
+
 ## En local
 
 ```bash
